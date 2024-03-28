@@ -27,6 +27,15 @@
 .App-link {
   color: #61dafb;
 }
+.my-footer{
+  color: black !important;
+  font-size: 20px;
+  text-transform: uppercase;
+  font-weight: 600;
+  --bs-bg-opacity: 1;
+    background-color: #fff !important;
+    box-shadow: 0px 0px 20px -10px rgba(0, 0, 0, 0.5);
+}
 
 @keyframes App-logo-spin {
   from {
@@ -36,3 +45,4 @@
     transform: rotate(360deg);
   }
 }
+
