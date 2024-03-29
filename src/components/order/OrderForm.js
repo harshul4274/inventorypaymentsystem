@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import web3 from '../../utils/web3';
 import InventoryPayment from '../../contracts/InventoryPayment.json';
+import { toast, ToastContainer } from 'react-toastify';
 
 const PlaceOrder = () => {
   const [products, setProducts] = useState([]);
@@ -11,7 +12,10 @@ const PlaceOrder = () => {
   const [orderDetails, setOrderDetails] = useState([]);
 
   useEffect(() => {
+    console.log("fetchProducts calling");
     fetchProducts();
+    console.log("fetchOrderNumbers calling");
+    fetchOrderNumbers();
   }, []);
 
   useEffect(() => {
@@ -36,6 +40,33 @@ const PlaceOrder = () => {
 
     fetchAccounts();
   }, []);
+
+  const fetchOrderNumbers = async () => {
+    try {
+      const networkId = await web3.eth.net.getId();
+      const accs = await web3.eth.getAccounts();
+      const deployedNetwork = InventoryPayment.networks[networkId];
+      const contract = new web3.eth.Contract(
+        InventoryPayment.abi,
+        deployedNetwork && deployedNetwork.address
+      );
+
+      const orderCount = await contract.methods.getPlacedOrderNumbers(accs[0]).call();
+      console.log(orderCount);
+      const orderDetailsObject =[];
+      for (let i=0;i<orderCount.length;i++){
+        console.log(i,orderCount[i]);
+        const orderDetails = await contract.methods.getOrderDetails(accs[0],orderCount[i]).call();
+        
+        orderDetailsObject.push(orderDetails);
+      }
+      console.log(orderDetailsObject);
+      setOrderDetails(orderDetailsObject);
+      // 
+    } catch (error) {
+      console.error('Error fetching products:', error);
+    }
+  }
 
   const fetchProducts = async () => {
     try {
@@ -72,23 +103,42 @@ const PlaceOrder = () => {
     const quantity = parseInt(event.target.value);
     setProductQuantities({ ...productQuantities, [productId]: quantity });
   };
+  const formatDate = (timestamp) => {
+    const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
+    const day = date.getDate();
+    const month = date.getMonth() + 1; // Months are zero-based
+    const year = date.getFullYear();
+  
+    // Add leading zeros if necessary
+    const formattedDay = day < 10 ? `0${day}` : day;
+    const formattedMonth = month < 10 ? `0${month}` : month;
+  
+    return `${formattedDay}/${formattedMonth}/${year}`;
+  };
+
+  const numberWithCommas = (number) => {
+    return number.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+    //return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const gasEstimate = await inventoryContract.methods.placeOrder(selectedProducts, Object.values(productQuantities)).estimateGas({ from: accounts[0] });
+      const gasEstimate = await inventoryContract.methods.placeOrder(selectedProducts, Object.values(productQuantities),1).estimateGas({ from: accounts[0] });
       const gasLimit = gasEstimate * 2;
-      await inventoryContract.methods.placeOrder(selectedProducts, Object.values(productQuantities)).send({ from: accounts[0], gas: gasLimit });
+      await inventoryContract.methods.placeOrder(selectedProducts, Object.values(productQuantities),1).send({ from: accounts[0], gas: gasLimit });
 
-      // Fetch order details from the smart contract
-      const orderCount = await inventoryContract.methods.getOrderCount().call({ from: accounts[0] });
-      const newOrder = await inventoryContract.methods.orders(orderCount - 1).call({ from: accounts[0] });
-      setOrderDetails([...orderDetails, newOrder]);
+      // // Fetch order details from the smart contract
+      // const orderCount = await inventoryContract.methods.getOrderCount().call({ from: accounts[0] });
+      // const newOrder = await inventoryContract.methods.orders(orderCount - 1).call({ from: accounts[0] });
+      // setOrderDetails([...orderDetails, newOrder]);
       
       // Clear selected products and quantities after placing order
       setSelectedProducts([]);
       setProductQuantities({});
+      fetchOrderNumbers();
     } catch (error) {
+      toast.error(error.message);
       console.error('Error placing order:', error);
     }
   };
@@ -115,13 +165,32 @@ const PlaceOrder = () => {
       {orderDetails.length > 0 && (
         <div>
           <h3>Order Details</h3>
-          <ul>
-            {orderDetails.map((order, index) => (
-              <li key={index}>
-                Order ID: {order.orderId} - Products: {order.products.join(', ')} - Quantities: {order.quantities.join(', ')}
-              </li>
-            ))}
-          </ul>
+          <table>
+            <thead>
+              <tr>
+                <th>Order No</th>
+                <th>Order Date</th>
+                <th>Total Amount</th>
+                <th>Status</th>
+                <th>Supplier ID</th>
+                <th>Product IDs</th>
+                <th>Product Quantities</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orderDetails.map(order => (
+                <tr key={order.orderNo}>
+                  <td>{order.orderNo}</td>
+                  <td>{formatDate(order.orderDate)}</td>
+                  <td>&#8377; {numberWithCommas(order.orderTotalAmount)}</td>
+                  <td>{order.orderStatus}</td>
+                  <td>{order.supplierId}</td>
+                  <td>{order.productIds.join(', ')}</td>
+                  <td>{order.productQtys.join(', ')}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
     </div>

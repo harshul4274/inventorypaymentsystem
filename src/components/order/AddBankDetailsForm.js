@@ -55,6 +55,7 @@ const AddBankDetailsForm = () => {
       resetForm();
       setBankDetails(bankDetailsObj);
     } catch (error) {
+      console.log(error);
       toast.error('Error fetching bank details:', error.message);
     }finally{
       resetForm();

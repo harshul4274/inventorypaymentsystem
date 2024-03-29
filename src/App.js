@@ -10,6 +10,7 @@ import ProductForm from './components/order/ProductForm';
 import OrderForm from './components/order/OrderForm';
 import OrderDetails from './components/order/OrderDetails';
 import Supplier from './components/order/Supplier';
+import QRCodeGenerator from './components/order/QRCodeGenerator';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
@@ -30,6 +31,7 @@ const App = () => {
             <Route path="/add-product" element={<ProductForm />} />
             <Route path="/place-order" element={<OrderForm />} />
             <Route path="/order-details" element={<OrderDetails />} />
+            <Route path="/qr-code" element={<QRCodeGenerator />} />
           </Routes>
         </main>
         <Footer />

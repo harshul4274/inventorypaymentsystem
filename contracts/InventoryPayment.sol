@@ -16,7 +16,9 @@ contract InventoryPayment {
         uint256 orderTotalAmount;
         string orderStatus;
         uint256 supplierId;
-        mapping(uint256 => OrderDetail) orderDetails;
+        uint256[] productIds;
+        uint256[] productQtys;
+        bool isReceived; // New field to track order receipt
     }
 
     struct OrderDetail {
@@ -49,15 +51,15 @@ contract InventoryPayment {
     uint256 public bankCount;
     uint256 public orderCount;
     uint256 public supplierCount;
+    uint256[] public activeProductIds;
+    uint256[] public activeSupplierIds;
 
     mapping(uint256 => Product) public products;
     mapping(address => Order[]) public userOrders;
     mapping(uint256 => Bank) public userBankDetails;
     mapping(uint256 => SupplierBank) public supplierBankDetails;
     mapping(uint256 => Supplier) public suppliers;
-    uint256[] public activeProductIds;
-    uint256[] public activeSupplierIds;
-
+    
     event OrderPlaced(uint256 indexed orderNo, address indexed user);
 
     event BankAdded(uint256 indexed bankId);
@@ -297,10 +299,7 @@ contract InventoryPayment {
 
     // Function to delete a product
     function deleteProduct(uint256 _productId) external {
-        require(
-            _productId <= productCount && _productId > 0,
-            "Invalid product ID"
-        );
+        require(_productId <= productCount && _productId > 0, "Invalid product ID");
         delete products[_productId];
         emit ProductDeleted(_productId);
 
@@ -328,40 +327,83 @@ contract InventoryPayment {
     // Function to place an order
     function placeOrder(
         uint256[] memory _productIds,
-        uint256[] memory _productQtyOrder
+        uint256[] memory _productQtyOrder,
+        uint256 _supplierId
     ) external {
         require(
             _productIds.length == _productQtyOrder.length,
             "Length mismatch"
         );
 
-        OrderDetail[] memory orderDetails = new OrderDetail[](
-            _productIds.length
-        );
+        uint256 totalAmount = 0;
         for (uint256 i = 0; i < _productIds.length; i++) {
             require(
                 _productIds[i] <= productCount && _productIds[i] > 0,
                 "Invalid product ID"
             );
-            orderDetails[i] = OrderDetail(
-                _productIds[i],
-                _productQtyOrder[i],
-                0
-            ); // Initialize received quantity as 0
+            totalAmount += products[_productIds[i]].productPrice * _productQtyOrder[i];
         }
 
         orderCount++;
         uint256 orderNo = orderCount; // Use sequential order number
-        Order storage newOrder = userOrders[msg.sender].push();
-        newOrder.orderNo = orderNo;
-        newOrder.orderDate = block.timestamp;
-        newOrder.orderStatus = "placed";
+        
+        uint256[] memory productIds = new uint256[](_productIds.length);
+        uint256[] memory productQtys = new uint256[](_productQtyOrder.length);
 
-        for (uint256 i = 0; i < orderDetails.length; i++) {
-            newOrder.orderDetails[orderDetails[i].productId] = orderDetails[i];
+        for (uint256 i = 0; i < _productIds.length; i++) {
+            productIds[i] = _productIds[i];
+            productQtys[i] = _productQtyOrder[i];
         }
+        userOrders[msg.sender].push(Order(
+            orderNo,
+            block.timestamp,
+            totalAmount,
+            "placed",
+            _supplierId, // Placeholder for supplier ID, to be updated later
+            productIds,
+            productQtys,
+            false
+        ));
 
         emit OrderPlaced(orderNo, msg.sender);
+    }
+
+    // Function to retrieve order numbers for a user
+    function getPlacedOrderNumbers(address _user) external view returns (uint256[] memory) {
+        Order[] storage orders = userOrders[_user];
+        uint256[] memory orderNumbers = new uint256[](orders.length);
+        for (uint256 i = 0; i < orders.length; i++) {
+            orderNumbers[i] = orders[i].orderNo;
+        }
+        return orderNumbers;
+    }
+
+    // Function to retrieve detailed order information by order number
+    function getOrderDetails(address _user, uint256 _orderNo) external view returns (
+        uint256 orderNo,
+        uint256 orderDate,
+        uint256 orderTotalAmount,
+        string memory orderStatus,
+        uint256 supplierId,
+        uint256[] memory productIds,
+        uint256[] memory productQtys
+    ) {
+        Order[] storage orders = userOrders[_user];
+        for (uint256 i = 0; i < orders.length; i++) {
+            if (orders[i].orderNo == _orderNo) {
+                Order storage order = orders[i];
+                return (
+                    order.orderNo,
+                    order.orderDate,
+                    order.orderTotalAmount,
+                    order.orderStatus,
+                    order.supplierId,
+                    order.productIds,
+                    order.productQtys
+                );
+            }
+        }
+        revert("Order not found");
     }
 
     function compareStrings(
@@ -371,59 +413,57 @@ contract InventoryPayment {
         return keccak256(abi.encodePacked(a)) == keccak256(abi.encodePacked(b));
     }
 
-    // Function to mark an order as received
-    function receiveOrder(uint256 _orderNo) external {
+    // Function to mark an order as received and update product quantities
+    function receiveOrder(uint256 _orderNo, OrderDetail[] memory _receivedProducts) external {
         Order[] storage orders = userOrders[msg.sender];
         bool orderFound = false;
+        
         for (uint256 i = 0; i < orders.length; i++) {
-            if (
-                orders[i].orderNo == _orderNo &&
-                !compareStrings(orders[i].orderStatus, "received")
-            ) {
-                orders[i].orderStatus = "received";
-                for (
-                    uint256 productId = 1;
-                    productId <= productCount;
-                    productId++
-                ) {
-                    if (orders[i].orderDetails[productId].productId != 0) {
-                        orders[i]
-                            .orderDetails[productId]
-                            .productQtyReceived = orders[i]
-                            .orderDetails[productId]
-                            .productQtyOrder;
-                    }
+            if (orders[i].orderNo == _orderNo && !orders[i].isReceived) {
+                uint256 totalAmount = 0;
+                require(_receivedProducts.length == orders[i].productIds.length, "Received product count does not match order");
+
+                // Validate received product details and update total amount
+                for (uint256 j = 0; j < _receivedProducts.length; j++) {
+                    require(_receivedProducts[j].productQtyReceived <= orders[i].productQtys[j], "Received quantity exceeds ordered quantity");
+                    
+                    //totalAmount += _receivedProducts[j].productQtyReceived * products[_receivedProducts[j].productId].productPrice;
+                    totalAmount += _receivedProducts[j].productQtyReceived * _receivedProducts[j].productQtyReceived;
+
+                    // Update product quantity in inventory
+                    products[_receivedProducts[j].productId].productQty += _receivedProducts[j].productQtyReceived;
                 }
+
+                // Mark order as received
+                orders[i].isReceived = true;
+                orders[i].orderStatus = "received";
+                orders[i].orderTotalAmount = totalAmount;
+
                 orderFound = true;
                 break;
             }
         }
+
         require(orderFound, "Order not found or already received");
-    }
 
-    // Function to pay a supplier for a received order
-    function paySupplier(uint256 _orderNo) external {
-        Order[] storage orders = userOrders[msg.sender];
+        // Automatically pay the supplier
+        //paySupplier(_orderNo);
+        
         for (uint256 i = 0; i < orders.length; i++) {
-            if (orders[i].orderNo == _orderNo) {
-                if (compareStrings(orders[i].orderStatus, "received")) {
-                    uint256 totalAmount = orders[i].orderTotalAmount;
-                    Bank storage userBank = userBankDetails[0];
-                    require(
-                        userBank.backupAmount + userBank.bankAccountNumber >=
-                            totalAmount,
-                        "Insufficient balance"
-                    );
+            if (orders[i].orderNo == _orderNo && compareStrings(orders[i].orderStatus, "received")) {
+                uint256 totalAmount = orders[i].orderTotalAmount;
+                uint256 supplierId = orders[i].supplierId;
 
-                    // Logic to transfer funds to supplier's account
-                    // Assuming funds transfer logic is implemented elsewhere
+                Bank storage userBank = userBankDetails[0];
+                SupplierBank storage supplierBank = supplierBankDetails[supplierId];
 
-                    // Updating user's bank balance
-                    userBank.backupAmount -= totalAmount;
-                    emit PaymentSent(_orderNo, msg.sender, totalAmount);
-                    break;
-                }
+                require(userBank.backupAmount + userBank.bankAccountNumber >= totalAmount, "Insufficient balance");
+                
+                // Update user's bank balance
+                userBank.backupAmount -= totalAmount;
+                break;
             }
         }
+
     }
 }

@@ -201,7 +201,7 @@ const AddBankDetailsForm = () => {
         <tbody>
           {filteredSupplierDetails.map((supplier) => (
             <tr key={supplier.supplierId}>
-              <td>{supplier.supplierName}</td>
+              <td>{supplier.supplierId} {supplier.supplierName}</td>
               <td>{supplier.supplierNumber}</td>
               <td>{supplier.supplierBank.bankName}</td>			  
               <td>{supplier.supplierBank.accountNumber}</td>		  
