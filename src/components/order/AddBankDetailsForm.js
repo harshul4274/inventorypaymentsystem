@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import web3 from '../../utils/web3';
 import InventoryPayment from '../../contracts/InventoryPayment.json';
 import { toast } from 'react-toastify';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -18,6 +19,29 @@ const AddBankDetailsForm = () => {
 
   useEffect(() => {
     fetchBankDetails();
+  }, []);
+
+  useEffect(() => {
+    const initContract = async () => {
+      const networkId = await web3.eth.net.getId();
+      const deployedNetwork = InventoryPayment.networks[networkId];
+      const contract = new web3.eth.Contract(
+        InventoryPayment.abi,
+        deployedNetwork && deployedNetwork.address
+      );
+      setInventoryContract(contract);
+    };
+
+    initContract();
+  }, []);
+
+  useEffect(() => {
+    const fetchAccounts = async () => {
+      const accs = await web3.eth.getAccounts();
+      setAccounts(accs);
+    };
+
+    fetchAccounts();
   }, []);
 
   const fetchBankDetails = async () => {
