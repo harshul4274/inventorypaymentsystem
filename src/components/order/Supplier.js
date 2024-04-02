@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import web3 from "../../utils/web3";
 import InventoryPayment from "../../contracts/InventoryPayment.json";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEdit, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
 
 import { toast, ToastContainer } from "react-toastify";
 
@@ -126,106 +128,110 @@ const AddBankDetailsForm = () => {
 
   const filteredSupplierDetails = supplierDetails.filter(supplier => supplier.supplierName !== null && supplier.supplierName !== "");
   return (
-    <div className="table">
-      <form onSubmit={handleAddSupplierDetails} className="mt-4">
-        <div className="mb-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Supplier Name"
-            value={supplierName}
-            onChange={(e) => setSupplierName(e.target.value)}
-          />
+    <div className="custom">
+      <div className='row justify-content-center'>
+        <div className='col-6'>
+          <div className='custom-form p-4 row'>
+            <h2 className="mb-4">Supplier Form</h2>
+            <form onSubmit={handleAddSupplierDetails} className="mt-4">
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Supplier Name"
+                  value={supplierName}
+                  onChange={(e) => setSupplierName(e.target.value)}
+                />
+              </div>
+              <div className="mb-3">
+                <input
+                  type="tel"
+                  className="form-control"
+                  placeholder="Supplier Mobile Number"
+                  value={supplierNumber}
+                  onChange={(e) => setSupplierNumber(e.target.value)}
+                />
+              </div>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Supplier Bank Name"
+                  value={supplierBankName}
+                  onChange={(e) => setSupplierBankName(e.target.value)}
+                />
+              </div>
+              <div className="mb-3">
+                <input
+                  type="number"
+                  className="form-control"
+                  placeholder="Supplier Account Number"
+                  value={supplierAccountNumber}
+                  onChange={(e) => setSupplierAccountNumber(e.target.value)}
+                />
+              </div>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Supplier IFSC Code"
+                  value={supplierSortCode}
+                  onChange={(e) => setSupplierSortCode(e.target.value)}
+                />
+              </div>
+              <div className="mb-3">
+                <input
+                  type="hidden"
+                  className="form-control"
+                  placeholder="Supplier Id"
+                  value={selectedSupplierId}
+                  onChange={(e) => setSelectedSupplierId(e.target.value)}
+                />
+              </div>
+              <button type="submit" className="btn btn-primary">
+                Submit
+              </button>              
+              <button type="reset" className="btn btn-danger mx-2" onClick={resetForm}>
+                Reset
+              </button>
+            </form>
+          </div>
+        </div> 
+      </div>
+      <div className='row'> 
+        <div className='col-12 table-container'>
+          <div className="table-responsive">
+            <table className='table table-striped table-bordered'>
+              <thead className="thead-dark">
+                <tr>
+                  <th>Supplier Name</th>
+                  <th>Mobile Number</th>
+                  <th>Bank Name</th>
+                  <th>Bank Account Number</th>
+                  <th>Bank IFSC Code</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredSupplierDetails.map((supplier) => (
+                  <tr key={supplier.supplierId}>
+                    <td>{supplier.supplierId} {supplier.supplierName}</td>
+                    <td>{supplier.supplierNumber}</td>
+                    <td>{supplier.supplierBank.bankName}</td>			  
+                    <td>{supplier.supplierBank.accountNumber}</td>		  
+                    <td>{supplier.supplierBank.sortCode}</td>	
+                    <td>
+                      <FontAwesomeIcon icon={faEdit} />
+                      <button className="btn btn-primary btn-sm mr-2" onClick={() => selectSupplierForEdit(supplier)}><FontAwesomeIcon icon={faEdit} /></button>
+                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteSupplier(supplier.supplierId)}><FontAwesomeIcon icon={faTrashAlt} /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <div className="mb-3">
-          <input
-            type="tel"
-            className="form-control"
-            placeholder="Supplier Number"
-            value={supplierNumber}
-            onChange={(e) => setSupplierNumber(e.target.value)}
-          />
-        </div>
-        <div className="mb-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Supplier Bank Name"
-            value={supplierBankName}
-            onChange={(e) => setSupplierBankName(e.target.value)}
-          />
-        </div>
-        <div className="mb-3">
-          <input
-            type="number"
-            className="form-control"
-            placeholder="Supplier Account Number"
-            value={supplierAccountNumber}
-            onChange={(e) => setSupplierAccountNumber(e.target.value)}
-          />
-        </div>
-        <div className="mb-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Supplier Sort Code"
-            value={supplierSortCode}
-            onChange={(e) => setSupplierSortCode(e.target.value)}
-          />
-        </div>
-        <div className="mb-3">
-          <input
-            type="text"
-            className="form-control"
-            placeholder="Supplier Id"
-            value={selectedSupplierId}
-            onChange={(e) => setSelectedSupplierId(e.target.value)}
-          />
-        </div>
-        <button type="submit" className="btn btn-primary">
-          Submit
-        </button>
-      </form>
-
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Number</th>
-            <th>Bank Name</th>
-			<th>Bank Account Number</th>
-			<th>Bank Sort Code</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredSupplierDetails.map((supplier) => (
-            <tr key={supplier.supplierId}>
-              <td>{supplier.supplierId} {supplier.supplierName}</td>
-              <td>{supplier.supplierNumber}</td>
-              <td>{supplier.supplierBank.bankName}</td>			  
-              <td>{supplier.supplierBank.accountNumber}</td>		  
-              <td>{supplier.supplierBank.sortCode}</td>	
-              <td>
-                <button onClick={() => selectSupplierForEdit(supplier)}>Edit</button>
-                <button onClick={() => handleDeleteSupplier(supplier.supplierId)}>
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <th>Name</th>
-            <th>Number</th>
-            <th>Bank Name</th>
-			<th>Bank Account Number</th>
-			<th>Bank Sort Code</th>
-            <th>Actions</th>
-          </tr>
-        </tfoot>
-      </table>
+      </div>
     </div>
   );
 };

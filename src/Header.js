@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import '../src/css/header.css'; // Import the Header.css file
+import '../src/css/header.css';
+
 
 const Header = ({ logoSrc }) => {
   return (
@@ -12,6 +13,9 @@ const Header = ({ logoSrc }) => {
           <img src={logoSrc} alt="Logo"/>
         </Link>
         <ul className="navbar-nav">
+          <li className="nav-item">
+            <Link className="nav-link" to="/">Home</Link>
+          </li>
           <li className="nav-item">
             <Link className="nav-link" to="/add-bank-details">Bank</Link>
           </li>

@@ -41,12 +41,37 @@ function QRCodeGenerator() {
         setQrData(inputData);
     };
 
+    const jsonData = {
+      "orderNo": 3,
+      "receivedProducts": [
+        {
+          "productId": 1,
+          "productQtyOrder": 60,
+          "productQtyReceived": 60,
+          "productPrice": 10,
+        },
+        {
+          "productId": 2,
+          "productQtyOrder": 60,
+          "productQtyReceived": 60,
+          "productPrice": 10,
+        }
+      ]
+    };
+
     const handleReceivedOrder = async (orderNo,orderDetails) => {
         try {
-            const gasEstimate = await inventoryContract.methods.receiveOrder(orderNo, orderDetails).estimateGas({ from: accounts[0] });
+            // const gasEstimate = await inventoryContract.methods.receiveOrder(orderNo, orderDetails).estimateGas({ from: accounts[0] });
+            // const gasLimit = gasEstimate * 2;
+            // await inventoryContract.methods.receiveOrder(orderNo, orderDetails).send({ from: accounts[0], gas: gasLimit });
+            // toast.success("Successfully Received Order");
+            
+            const gasEstimate = await inventoryContract.methods.receiveOrder(jsonData.orderNo, jsonData.receivedProducts).estimateGas({ from: accounts[0] });
+            console.log(gasEstimate);
             const gasLimit = gasEstimate * 2;
-            await inventoryContract.methods.receiveOrder(orderNo, orderDetails).send({ from: accounts[0], gas: gasLimit });
+            await inventoryContract.methods.receiveOrder(jsonData.orderNo, jsonData.receivedProducts).send({ from: accounts[0], gas: gasLimit });
             toast.success("Successfully Received Order");
+
         } catch (error) {
             console.log(error);
             toast.error(error.message);

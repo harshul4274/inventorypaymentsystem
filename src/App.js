@@ -10,10 +10,12 @@ import ProductForm from './components/order/ProductForm';
 import OrderForm from './components/order/OrderForm';
 import OrderDetails from './components/order/OrderDetails';
 import Supplier from './components/order/Supplier';
+import HomeComponent from './components/order/Home';
 import QRCodeGenerator from './components/order/QRCodeGenerator';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import './App.css';
+import web3 from './utils/web3';
 
 const App = () => {
   const logoSrc = process.env.PUBLIC_URL + '/logo.png';
@@ -24,15 +26,18 @@ const App = () => {
       <div className="App d-flex flex-column min-vh-100">
         <Header logoSrc={logoSrc} />
         <main className="flex-grow-1 p-3">
-          <Routes>
-            <Route path="/add-bank-details" element={<AddBankDetailsForm />} />
-            <Route path="/supplier" element={<Supplier />} />
-            <Route path="/show-bank-details" element={<ShowBankDetails />} />
-            <Route path="/add-product" element={<ProductForm />} />
-            <Route path="/place-order" element={<OrderForm />} />
-            <Route path="/order-details" element={<OrderDetails />} />
-            <Route path="/qr-code" element={<QRCodeGenerator />} />
-          </Routes>
+          <div className="container mt-5">
+            <Routes>
+              <Route path='/' element={<HomeComponent/>}/>
+              <Route path="/add-bank-details" element={<AddBankDetailsForm />} />
+              <Route path="/supplier" element={<Supplier />} />
+              <Route path="/show-bank-details" element={<ShowBankDetails />} />
+              <Route path="/add-product" element={<ProductForm />} />
+              <Route path="/place-order" element={<OrderForm />} />
+              <Route path="/order-details" element={<OrderDetails />} />
+              <Route path="/qr-code" element={<QRCodeGenerator />} />
+            </Routes>
+            </div>
         </main>
         <Footer />
       </div>

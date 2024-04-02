@@ -25,6 +25,7 @@ contract InventoryPayment {
         uint256 productId;
         uint256 productQtyOrder;
         uint256 productQtyReceived;
+        uint256 productPrice;
     }
 
     struct Supplier {
@@ -238,7 +239,7 @@ contract InventoryPayment {
     // Function to delete a product
     function deleteBank(uint256 _bankId) external {
         require(_bankId <= bankCount && _bankId > 0, "Invalid bank ID");
-        delete products[_bankId];
+        delete userBankDetails[_bankId];
         emit BankDeleted(_bankId);
     }
 
@@ -418,17 +419,17 @@ contract InventoryPayment {
         Order[] storage orders = userOrders[msg.sender];
         bool orderFound = false;
         
-        for (uint256 i = 0; i < orders.length; i++) {
-            if (orders[i].orderNo == _orderNo && !orders[i].isReceived) {
+        for (uint256 i = 1; i <= orders.length; i++) {
+            if (orders[i].orderNo == _orderNo && !compareStrings(orders[i].orderStatus, "received")) {
                 uint256 totalAmount = 0;
                 require(_receivedProducts.length == orders[i].productIds.length, "Received product count does not match order");
 
                 // Validate received product details and update total amount
-                for (uint256 j = 0; j < _receivedProducts.length; j++) {
+                for (uint256 j = 1; j <= _receivedProducts.length; j++) {
                     require(_receivedProducts[j].productQtyReceived <= orders[i].productQtys[j], "Received quantity exceeds ordered quantity");
                     
                     //totalAmount += _receivedProducts[j].productQtyReceived * products[_receivedProducts[j].productId].productPrice;
-                    totalAmount += _receivedProducts[j].productQtyReceived * _receivedProducts[j].productQtyReceived;
+                    totalAmount += _receivedProducts[j].productQtyReceived * _receivedProducts[j].productPrice;
 
                     // Update product quantity in inventory
                     products[_receivedProducts[j].productId].productQty += _receivedProducts[j].productQtyReceived;
@@ -449,15 +450,15 @@ contract InventoryPayment {
         // Automatically pay the supplier
         //paySupplier(_orderNo);
         
-        for (uint256 i = 0; i < orders.length; i++) {
+        for (uint256 i = 1; i <= orders.length; i++) {
             if (orders[i].orderNo == _orderNo && compareStrings(orders[i].orderStatus, "received")) {
                 uint256 totalAmount = orders[i].orderTotalAmount;
-                uint256 supplierId = orders[i].supplierId;
+                //uint256 supplierId = orders[i].supplierId;
 
-                Bank storage userBank = userBankDetails[0];
-                SupplierBank storage supplierBank = supplierBankDetails[supplierId];
+                Bank storage userBank = userBankDetails[1];
+                //SupplierBank storage supplierBank = supplierBankDetails[supplierId];
 
-                require(userBank.backupAmount + userBank.bankAccountNumber >= totalAmount, "Insufficient balance");
+                require(userBank.backupAmount >= totalAmount, "Insufficient balance");
                 
                 // Update user's bank balance
                 userBank.backupAmount -= totalAmount;
