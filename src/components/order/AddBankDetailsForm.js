@@ -22,16 +22,6 @@ const AddBankDetailsForm = () => {
   }, []);
 
   useEffect(() => {
-    const initContract = async () => {
-      const networkId = await web3.eth.net.getId();
-      const deployedNetwork = InventoryPayment.networks[networkId];
-      const contract = new web3.eth.Contract(
-        InventoryPayment.abi,
-        deployedNetwork && deployedNetwork.address
-      );
-      setInventoryContract(contract);
-    };
-
     initContract();
   }, []);
 
@@ -44,6 +34,15 @@ const AddBankDetailsForm = () => {
     fetchAccounts();
   }, []);
 
+  const initContract = async () => {
+    const networkId = await web3.eth.net.getId();
+    const deployedNetwork = InventoryPayment.networks[networkId];
+    const contract = new web3.eth.Contract(
+      InventoryPayment.abi,
+      deployedNetwork && deployedNetwork.address
+    );
+    setInventoryContract(contract);
+  };
   const fetchBankDetails = async () => {
     
     
