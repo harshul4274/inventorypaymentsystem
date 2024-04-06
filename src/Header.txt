@@ -1,0 +1,49 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import '../src/css/header.css';
+
+const SubMenu = ({ items }) => {
+  return (
+    <ul className="dropdown-menu" aria-labelledby="navbarDropdown">
+      {items.map((item, index) => (
+        <li key={index}><Link className="dropdown-item" to={item.url}>{item.label}</Link></li>
+      ))}
+    </ul>
+  );
+};
+
+const Header = ({ logoSrc }) => {
+  // Define submenu items for each menu item
+  const menuItems = [
+    { label: "Bank", url: "/bank", submenu: [{ label: "View", url: "/bank/view" }, { label: "Add", url: "/bank/add" }] },
+    { label: "Suppliers", url: "/suppliers", submenu: [{ label: "Supplier 1", url: "/suppliers/1" }, { label: "Supplier 2", url: "/suppliers/2" }] },
+    { label: "Products", url: "/products", submenu: [{ label: "Product 1", url: "/products/1" }, { label: "Product 2", url: "/products/2" }] },
+    { label: "Order", url: "/place-order", submenu: [{ label: "Place Order", url: "/place-order" }, { label: "Track Order", url: "/track-order" }] },
+    { label: "QR Code", url: "/qr-code", submenu: [{ label: "Generate", url: "/qr-code/generate" }, { label: "Scan", url: "/qr-code/scan" }] }
+  ];
+
+  return (
+    <nav className="navbar navbar-expand-lg navbar-light my-header">
+      <div className="container">
+        <Link className="navbar-brand" to="/">
+          <img src={logoSrc} alt="Logo"/>
+        </Link>
+        <ul className="navbar-nav">
+          <li className="nav-item">
+            <Link className="nav-link" to="/">Home</Link>
+          </li>
+          {menuItems.map((menuItem, index) => (
+            <li className="nav-item dropdown" key={index}>
+              <Link className="nav-link dropdown-toggle" to={menuItem.url} id={`navbarDropdown${index}`} role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                {menuItem.label}
+              </Link>
+              <SubMenu items={menuItem.submenu} />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </nav>
+  );
+};
+
+export default Header;

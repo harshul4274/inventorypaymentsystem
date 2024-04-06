@@ -17,13 +17,13 @@ const Header = ({ logoSrc }) => {
             <Link className="nav-link" to="/">Home</Link>
           </li>
           <li className="nav-item">
-            <Link className="nav-link" to="/add-bank-details">Bank</Link>
+            <Link className="nav-link" to="/bank">Bank</Link>
           </li>
           <li className="nav-item">
-            <Link className="nav-link" to="/supplier">Supplier</Link>
+            <Link className="nav-link" to="/suppliers">Supplier</Link>
           </li>
           <li className="nav-item">
-            <Link className="nav-link" to="/add-product">Products</Link>
+            <Link className="nav-link" to="/products">Products</Link>
           </li>
           <li className="nav-item">
             <Link className="nav-link" to="/place-order">Order</Link>

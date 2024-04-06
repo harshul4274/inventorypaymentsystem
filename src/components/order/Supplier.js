@@ -1,88 +1,110 @@
 import React, { useState, useEffect } from "react";
-import web3 from "../../utils/web3";
-import InventoryPayment from "../../contracts/InventoryPayment.json";
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faEdit, faTrashAlt } from '@fortawesome/free-solid-svg-icons';
+import axios from "axios";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEdit, faTrashAlt } from "@fortawesome/free-solid-svg-icons";
 
-import { toast, ToastContainer } from "react-toastify";
+import { toast } from "react-toastify";
 
 const AddBankDetailsForm = () => {
-	const [supplierName, setSupplierName] = useState("");
-	const [supplierNumber, setSupplierNumber] = useState("");
-	const [supplierBankName, setSupplierBankName] = useState("");
-	const [supplierAccountNumber, setSupplierAccountNumber] = useState("");
-	const [supplierSortCode, setSupplierSortCode] = useState("");
-	const [selectedSupplierId, setSelectedSupplierId] = useState("");
+  const baseURL = process.env.REACT_APP_API_URL;
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierNumber, setSupplierNumber] = useState("");
+  const [supplierBankName, setSupplierBankName] = useState("");
+  const [supplierAccountNumber, setSupplierAccountNumber] = useState("");
+  const [supplierSortCode, setSupplierSortCode] = useState("");
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
 
-	const [supplierDetails, setSupplierDetails] = useState([]);
-	const [inventoryContract, setInventoryContract] = useState(null);
-	const [accounts, setAccounts] = useState([]);
+  const [supplierDetails, setSupplierDetails] = useState([]);
 
   useEffect(() => {
     fetchSupplierDetails();
   }, []);
 
-  useEffect(() => {
-    initContract();
-  }, []);
-
-  const initContract = async () => {
-    const networkId = await web3.eth.net.getId();
-    const deployedNetwork = InventoryPayment.networks[networkId];
-    const contract = new web3.eth.Contract(
-      InventoryPayment.abi,
-      deployedNetwork && deployedNetwork.address
-    );
-    setInventoryContract(contract);
-  };
-
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      const accs = await web3.eth.getAccounts();
-      setAccounts(accs);
-    };
-
-    fetchAccounts();
-  }, []);
-
   const fetchSupplierDetails = async () => {
     try {
-      const networkId = await web3.eth.net.getId();
-      const deployedNetwork = InventoryPayment.networks[networkId];
-      const contract = new web3.eth.Contract(
-        InventoryPayment.abi,
-        deployedNetwork && deployedNetwork.address
+      const supplierDetailsObj = await axios.get(
+        `${baseURL}/api/getSupplierDetails`
       );
-      const supplierDetailsObj = await contract.methods.getAllSuppliersDetails().call();
-      resetForm();
-      setSupplierDetails(supplierDetailsObj);
+      setSupplierDetails(supplierDetailsObj.data.data);
     } catch (error) {
-      toast.error("Error fetching bank details:", error.message);
+      toast.error("Error fetching supplier details:", error.message);
     } finally {
       resetForm();
     }
   };
 
+  const validateForm = () => {
+    if (!supplierName.trim()) {
+      toast.error("Supplier Name cannot be empty");
+      return false;
+    }
+    if (!/^\d+$/.test(supplierNumber) || supplierNumber.length !== 10) {
+      toast.error("Supplier Mobile Number must be numeric and 10 digits long");
+      return false;
+    }
+    if (!supplierBankName.trim()) {
+      toast.error("Supplier Bank Name cannot be empty");
+      return false;
+    }
+    if (!/^\d+$/.test(supplierAccountNumber)) {
+      toast.error("Supplier Account Number must be numeric");
+      return false;
+    }
+    if (!supplierSortCode.trim() || supplierSortCode.length !== 6) {
+      toast.error("Supplier IFSC Code cannot be empty and 6 length");
+      return false;
+    }
+    return true;
+  };
   const handleAddSupplierDetails = async (e) => {
     e.preventDefault();
     try {
-      if (selectedSupplierId == "") {
-        const gasEstimate = await inventoryContract.methods
-          .addSupplier(supplierName,supplierNumber, supplierBankName, supplierAccountNumber,supplierSortCode)
-          .estimateGas({ from: accounts[0] });
-        const gasLimit = gasEstimate * 2;
-        await inventoryContract.methods
-		.addSupplier(supplierName,supplierNumber, supplierBankName, supplierAccountNumber,supplierSortCode)
-          .send({ from: accounts[0], gas: gasLimit });
-      } else {
-        const gasEstimate = await inventoryContract.methods
-          .updateSupplier(selectedSupplierId, supplierName,supplierNumber, supplierBankName, supplierAccountNumber,supplierSortCode)
-          .estimateGas({ from: accounts[0] });
-        const gasLimit = gasEstimate * 2;
-		await inventoryContract.methods
-		.updateSupplier(selectedSupplierId, supplierName,supplierNumber, supplierBankName, supplierAccountNumber,supplierSortCode)
-          .send({ from: accounts[0], gas: gasLimit });
+      if (!validateForm()) {
+        return;
       }
+      const requestBody = {
+        supplierName,
+        supplierNumber,
+        supplierBankName,
+        supplierAccountNumber,
+        supplierSortCode,
+      };
+      if (selectedSupplierId == "") {
+        await axios.post(`${baseURL}/api/addSupplier`, requestBody);
+        toast.success("Supplier inserted successfully.");
+      } else {
+        const requestBody = {
+          supplierName,
+          supplierNumber,
+          supplierBankName,
+          supplierAccountNumber,
+          supplierSortCode,
+        };
+        await axios.put(
+          `${baseURL}/api/updateSupplier/${selectedSupplierId}`,
+          requestBody
+        );
+        toast.success("Supplier updated successfully.");
+      }
+      fetchSupplierDetails();
+
+      resetForm();
+    } catch (error) {
+      toast.error(error.message);
+      resetForm();
+    }
+  };
+
+  const handleDeleteSupplier = async (supplierId) => {
+    try {
+      const isConfirmed = window.confirm(
+        "Are you sure you want to delete this supplier?"
+      );
+      if (!isConfirmed) {
+        return;
+      }
+      await axios.delete(`${baseURL}/api/deleteSupplier/${supplierId}`);
+      toast.success("Supplier deleted successfully.");
       fetchSupplierDetails();
     } catch (error) {
       toast.error(error.message);
@@ -91,47 +113,37 @@ const AddBankDetailsForm = () => {
     }
   };
 
-  const handleDeleteSupplier = async (supplierId) => {
-    try {
-      const gasEstimate = await inventoryContract.methods
-        .deleteSupplier(supplierId)
-        .estimateGas({ from: accounts[0] });
-      const gasLimit = gasEstimate * 2;
-      await inventoryContract.methods
-        .deleteSupplier(supplierId)
-        .send({ from: accounts[0], gas: gasLimit });
-		fetchSupplierDetails();
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      resetForm();
-    }
-  };
-
   const selectSupplierForEdit = (supplier) => {
-	setSelectedSupplierId(supplier.supplierId);
-	setSupplierName(supplier.supplierName);
-	setSupplierNumber(supplier.supplierNumber);
-	setSupplierBankName(supplier.supplierBank.bankName);
-	setSupplierAccountNumber(supplier.supplierBank.accountNumber);
-	setSupplierSortCode(supplier.supplierBank.sortCode);
+    setSelectedSupplierId(supplier[0]);
+    setSupplierName(supplier[1]);
+    setSupplierNumber(supplier[2]);
+    setSupplierBankName(supplier[3][0]);
+    setSupplierAccountNumber(supplier[3][1]);
+    setSupplierSortCode(supplier[3][2]);
   };
 
   const resetForm = () => {
     setSelectedSupplierId("");
-	setSupplierName("");
-	setSupplierNumber("");
-	setSupplierBankName("");
-	setSupplierAccountNumber("");
-	setSupplierSortCode("");
+    setSupplierName("");
+    setSupplierNumber("");
+    setSupplierBankName("");
+    setSupplierAccountNumber("");
+    setSupplierSortCode("");
   };
 
-  const filteredSupplierDetails = supplierDetails.filter(supplier => supplier.supplierName !== null && supplier.supplierName !== "");
+  let filteredSupplierDetails = [];
+
+  if (supplierDetails.length > 0) {
+    filteredSupplierDetails = supplierDetails.filter(
+      (supplier) => supplier[1] !== ""
+    );
+  }
+
   return (
     <div className="custom">
-      <div className='row justify-content-center'>
-        <div className='col-6'>
-          <div className='custom-form p-4 row'>
+      <div className="row justify-content-center">
+        <div className="col-6">
+          <div className="custom-form p-4 row">
             <h2 className="mb-4">Supplier Form</h2>
             <form onSubmit={handleAddSupplierDetails} className="mt-4">
               <div className="mb-3">
@@ -190,18 +202,22 @@ const AddBankDetailsForm = () => {
               </div>
               <button type="submit" className="btn btn-primary">
                 Submit
-              </button>              
-              <button type="reset" className="btn btn-danger mx-2" onClick={resetForm}>
+              </button>
+              <button
+                type="reset"
+                className="btn btn-danger mx-2"
+                onClick={resetForm}
+              >
                 Reset
               </button>
             </form>
           </div>
-        </div> 
+        </div>
       </div>
-      <div className='row'> 
-        <div className='col-12 table-container'>
+      <div className="row">
+        <div className="col-12 table-container">
           <div className="table-responsive">
-            <table className='table table-striped table-bordered'>
+            <table className="table table-striped table-bordered">
               <thead className="thead-dark">
                 <tr>
                   <th>Supplier Name</th>
@@ -214,16 +230,22 @@ const AddBankDetailsForm = () => {
               </thead>
               <tbody>
                 {filteredSupplierDetails.map((supplier) => (
-                  <tr key={supplier.supplierId}>
-                    <td>{supplier.supplierId} {supplier.supplierName}</td>
-                    <td>{supplier.supplierNumber}</td>
-                    <td>{supplier.supplierBank.bankName}</td>			  
-                    <td>{supplier.supplierBank.accountNumber}</td>		  
-                    <td>{supplier.supplierBank.sortCode}</td>	
+                  <tr key={supplier[0]}>
                     <td>
-                      <FontAwesomeIcon icon={faEdit} />
-                      <button className="btn btn-primary btn-sm mr-2" onClick={() => selectSupplierForEdit(supplier)}><FontAwesomeIcon icon={faEdit} /></button>
-                      <button className="btn btn-danger btn-sm" onClick={() => handleDeleteSupplier(supplier.supplierId)}><FontAwesomeIcon icon={faTrashAlt} /></button>
+                      {supplier[0]} {supplier[1]}
+                    </td>
+                    <td>{supplier[2]}</td>
+                    <td>{supplier[3][0]}</td>
+                    <td>{supplier[3][1]}</td>
+                    <td>{supplier[3][2]}</td>
+                    <td>
+                      <button
+                        className="btn btn-primary btn-sm"
+                        onClick={() => selectSupplierForEdit(supplier)}
+                      >
+                        <FontAwesomeIcon icon={faEdit} />
+                      </button>
+                      {/* <button className="btn btn-danger btn-sm mx-2" onClick={() => handleDeleteSupplier(supplier[0])}><FontAwesomeIcon icon={faTrashAlt} /></button> */}
                     </td>
                   </tr>
                 ))}

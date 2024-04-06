@@ -1,4 +1,4 @@
 const HomeComponent = () => {
-  return <div>WelCome to Home.</div>;
+  return <div><h1>Welcome to OrderManagement.</h1></div>;
 };
 export default HomeComponent;

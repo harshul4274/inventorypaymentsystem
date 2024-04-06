@@ -1,198 +1,354 @@
-import React, { useState, useEffect } from 'react';
-import web3 from '../../utils/web3';
-import InventoryPayment from '../../contracts/InventoryPayment.json';
-import { toast, ToastContainer } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
+import { toast } from "react-toastify";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faEye } from "@fortawesome/free-solid-svg-icons";
+import "bootstrap/dist/css/bootstrap.min.css"; // Import Bootstrap CSS
+import { Badge } from "react-bootstrap";
 
 const PlaceOrder = () => {
+  const baseURL = process.env.REACT_APP_API_URL;
+  const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [productQuantities, setProductQuantities] = useState({});
-  const [inventoryContract, setInventoryContract] = useState(null);
-  const [accounts, setAccounts] = useState([]);
   const [orderDetails, setOrderDetails] = useState([]);
+  const [bankDetails, setBankDetails] = useState([]);
+  const [supplierDetails, setSupplierDetails] = useState([]);
+  const [selectedSupplierId, setSelectedSupplierId] = useState("");
 
   useEffect(() => {
-    console.log("fetchProducts calling");
     fetchProducts();
-    console.log("fetchOrderNumbers calling");
     fetchOrderNumbers();
+    fetchBankDetails();
+    fetchSupplierDetails();
   }, []);
 
-  useEffect(() => {
-    const initContract = async () => {
-      const networkId = await web3.eth.net.getId();
-      const deployedNetwork = InventoryPayment.networks[networkId];
-      const contract = new web3.eth.Contract(
-        InventoryPayment.abi,
-        deployedNetwork && deployedNetwork.address
+  const handleChange = (event) => {
+    setSelectedSupplierId(event.target.value);
+  };
+
+  const fetchBankDetails = async () => {
+    try {
+      const response = await axios.get(`${baseURL}/api/bankDetails`);
+      setBankDetails(response.data.data);
+    } catch (error) {
+      toast.error("Error fetching bank details:", error.message);
+    }
+  };
+
+  const fetchSupplierDetails = async () => {
+    try {
+      const supplierDetailsObj = await axios.get(
+        `${baseURL}/api/getSupplierDetails`
       );
-      setInventoryContract(contract);
-    };
+      setSupplierDetails(supplierDetailsObj.data.data);
+    } catch (error) {
+      toast.error("Error fetching supplier details:", error.message);
+    }
+  };
 
-    initContract();
-  }, []);
+  let filteredSupplierDetails = [];
+  let filteredBankDetails = [];
 
-  useEffect(() => {
-    const fetchAccounts = async () => {
-      const accs = await web3.eth.getAccounts();
-      setAccounts(accs);
-    };
+  if (supplierDetails.length > 0) {
+    filteredSupplierDetails = supplierDetails.filter(
+      (supplier) => supplier[1] !== ""
+    );
+  }
 
-    fetchAccounts();
-  }, []);
+  if (bankDetails.length > 0) {
+    filteredBankDetails = bankDetails.filter((item) => item[1] !== "");
+  }
 
   const fetchOrderNumbers = async () => {
     try {
-      const networkId = await web3.eth.net.getId();
-      const accs = await web3.eth.getAccounts();
-      const deployedNetwork = InventoryPayment.networks[networkId];
-      const contract = new web3.eth.Contract(
-        InventoryPayment.abi,
-        deployedNetwork && deployedNetwork.address
-      );
-
-      const orderCount = await contract.methods.getPlacedOrderNumbers(accs[0]).call();
-      console.log(orderCount);
-      const orderDetailsObject =[];
-      for (let i=0;i<orderCount.length;i++){
-        console.log(i,orderCount[i]);
-        const orderDetails = await contract.methods.getOrderDetails(accs[0],orderCount[i]).call();
-        
-        orderDetailsObject.push(orderDetails);
-      }
-      console.log(orderDetailsObject);
+      const response = await axios.get(`${baseURL}/api/order/details`);
+      const orderDetailsObject = response.data.data;
       setOrderDetails(orderDetailsObject);
-      // 
     } catch (error) {
-      console.error('Error fetching products:', error);
+      toast.error("Error fetching products:", error);
     }
-  }
+  };
 
   const fetchProducts = async () => {
     try {
-      const networkId = await web3.eth.net.getId();
-      const deployedNetwork = InventoryPayment.networks[networkId];
-      const contract = new web3.eth.Contract(
-        InventoryPayment.abi,
-        deployedNetwork && deployedNetwork.address
-      );
-
-      const productCount = await contract.methods.productCount().call();
-      const productsArray = [];
-      for (let i = 1; i <= productCount; i++) {
-        const product = await contract.methods.products(i).call();
-        productsArray.push(product);
-      }
+      const response = await axios.get(`${baseURL}/api/getProducts`);
+      const productsArray = response.data.data;
       setProducts(productsArray);
     } catch (error) {
-      console.error('Error fetching products:', error);
+      toast.error("Error fetching products:", error);
     }
   };
 
   const handleProductSelection = (productId, event) => {
     const isChecked = event.target.checked;
+
     if (isChecked) {
       setSelectedProducts([...selectedProducts, productId]);
     } else {
-      const updatedProducts = selectedProducts.filter(id => id !== productId);
+      const updatedProducts = selectedProducts.filter((id) => id !== productId);
       setSelectedProducts(updatedProducts);
     }
   };
 
   const handleQuantityChange = (productId, event) => {
     const quantity = parseInt(event.target.value);
-    setProductQuantities({ ...productQuantities, [productId]: quantity });
+    if (quantity > 0) {
+      setProductQuantities({ ...productQuantities, [productId]: quantity });
+    } else {
+      toast.warning("Quantity must be greater than 0.");
+    }
   };
+
   const formatDate = (timestamp) => {
-    const date = new Date(timestamp * 1000); // Convert Unix timestamp to milliseconds
+    const date = new Date(timestamp * 1000);
     const day = date.getDate();
-    const month = date.getMonth() + 1; // Months are zero-based
+    const month = date.getMonth() + 1;
     const year = date.getFullYear();
-  
-    // Add leading zeros if necessary
+
     const formattedDay = day < 10 ? `0${day}` : day;
     const formattedMonth = month < 10 ? `0${month}` : month;
-  
+
     return `${formattedDay}/${formattedMonth}/${year}`;
   };
 
   const numberWithCommas = (number) => {
-    return number.toLocaleString('en-IN', { maximumFractionDigits: 2 });
-    //return number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return number.toLocaleString("en-IN", { maximumFractionDigits: 2 });
+  };
+
+  const validateForm = () => {
+    if (!selectedSupplierId.trim()) {
+      toast.error("Please select supplier");
+      return false;
+    }
+
+    if (
+      Object.values(productQuantities).length <= 0 ||
+      selectedProducts.length <= 0
+    ) {
+      toast.error("Please select and enter the proper product qty.");
+      return false;
+    }
+
+    return true;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const gasEstimate = await inventoryContract.methods.placeOrder(selectedProducts, Object.values(productQuantities),1).estimateGas({ from: accounts[0] });
-      const gasLimit = gasEstimate * 2;
-      await inventoryContract.methods.placeOrder(selectedProducts, Object.values(productQuantities),1).send({ from: accounts[0], gas: gasLimit });
+      if (!validateForm()) {
+        return;
+      }
+      let supplierId = selectedSupplierId;
+      const productQty = Object.values(productQuantities);
+      const requestBody = {
+        selectedProducts,
+        productQty,
+        supplierId,
+      };
 
-      // // Fetch order details from the smart contract
-      // const orderCount = await inventoryContract.methods.getOrderCount().call({ from: accounts[0] });
-      // const newOrder = await inventoryContract.methods.orders(orderCount - 1).call({ from: accounts[0] });
-      // setOrderDetails([...orderDetails, newOrder]);
-      
+      await axios.post(`${baseURL}/api/place/order`, requestBody);
+
+      toast.success("Order Placed Successfully");
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
       // Clear selected products and quantities after placing order
       setSelectedProducts([]);
       setProductQuantities({});
       fetchOrderNumbers();
-    } catch (error) {
-      toast.error(error.message);
-      console.error('Error placing order:', error);
     }
   };
-  const filteredProducts = products.filter(product => product.productName !== null && product.productName !== "");
-  return (
-    <div>
-      <h2>Place Order</h2>
-      <form onSubmit={handleSubmit}>
-        <div>
-          <h3>Available Products</h3>
-          <ul>
-            {filteredProducts.map(product => (
-              <li key={product.productId}>
-                <input type="checkbox" onChange={(e) => handleProductSelection(product.productId, e)} /> {product.productName}
-                <input type="number" value={productQuantities[product.productId] || ''} onChange={(e) => handleQuantityChange(product.productId, e)} disabled={!selectedProducts.includes(product.productId)} />
-              </li>
-            ))}
-          </ul>
-        </div>
-        <button type="submit">Place Order</button>
-      </form>
 
-      {/* Display order details */}
-      {orderDetails.length > 0 && (
-        <div>
-          <h3>Order Details</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Order No</th>
-                <th>Order Date</th>
-                <th>Total Amount</th>
-                <th>Status</th>
-                <th>Supplier ID</th>
-                <th>Product IDs</th>
-                <th>Product Quantities</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orderDetails.map(order => (
-                <tr key={order.orderNo}>
-                  <td>{order.orderNo}</td>
-                  <td>{formatDate(order.orderDate)}</td>
-                  <td>&#8377; {numberWithCommas(order.orderTotalAmount)}</td>
-                  <td>{order.orderStatus}</td>
-                  <td>{order.supplierId}</td>
-                  <td>{order.productIds.join(', ')}</td>
-                  <td>{order.productQtys.join(', ')}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+  const filteredProducts = products.filter(
+    (product) => product[1] !== null && product[1] !== ""
+  );
+
+  const handleClick = (routeName) => {
+    if (routeName == "bank") {
+      navigate("/bank");
+    } else if (routeName == "supplier") {
+      navigate("/suppliers");
+    } else {
+      navigate("/products");
+    }
+  };
+
+  return (
+    <div className="custom">
+      <div className="row justify-content-center">
+        <div className="col-8">
+          <div className="custom-form p-4 row">
+            <h2 className="header-title">Place Order Form</h2>
+            {filteredProducts.length > 0 &&
+            filteredBankDetails.length > 0 &&
+            filteredSupplierDetails.length > 0 ? (
+              <form onSubmit={handleSubmit}>
+                <div className="col-12 order-table-container">
+                  <div className="table-responsive">
+                    <table className="table table-striped table-bordered">
+                      <thead className="thead-dark">
+                        <tr key="0">
+                          <th colSpan={4}>
+                            <h4>Supplier Details</h4>
+                          </th>
+                        </tr>
+                        <tr key="1">
+                          <td key={5} colSpan={3}>
+                            <select
+                              className="form-control"
+                              value={selectedSupplierId}
+                              onChange={handleChange}
+                            >
+                              <option value="">Select Supplier</option>
+                              {filteredSupplierDetails.map((supplier) => (
+                                <option key={supplier[0]} value={supplier[0]}>
+                                  {supplier[1]}
+                                </option>
+                              ))}
+                              ;
+                            </select>
+                          </td>
+                        </tr>
+                        <tr key="2">
+                          <th colSpan={4}>
+                            <h4>Product Details</h4>
+                          </th>
+                        </tr>
+                        <tr key="4">
+                          <th>#</th>
+                          <th>Product Name</th>
+                          <th>Quantity</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredProducts.map((product) => (
+                          <tr key={product[0]}>
+                            <td>
+                              <input
+                                type="checkbox"
+                                onChange={(e) =>
+                                  handleProductSelection(product[0], e)
+                                }
+                              />
+                            </td>
+                            <td> {product[1]}</td>
+                            <td>
+                              <input
+                                type="number"
+                                className="form-control"
+                                value={productQuantities[product[0]] || ""}
+                                onChange={(e) =>
+                                  handleQuantityChange(product[0], e)
+                                }
+                                disabled={
+                                  !selectedProducts.includes(product[0])
+                                }
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+                <button type="submit" className="btn btn-primary">
+                  Place Order
+                </button>
+              </form>
+            ) : filteredBankDetails.length <= 0 ? (
+              <div className="row p-4">
+                <h5> Please add the bank</h5>
+                <h6>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleClick("bank")}
+                  >
+                    Add Bank Details
+                  </button>
+                </h6>
+              </div>
+            ) : filteredSupplierDetails.length <= 0 ? (
+              <div className="row p-4">
+                <h5> Please add the supplier</h5>
+                <h6>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleClick("supplier")}
+                  >
+                    Add Supplier Details
+                  </button>
+                </h6>
+              </div>
+            ) : filteredProducts.length <= 0 ? (
+              <div className="row p-4">
+                <h5> Please add the products</h5>
+                <h6>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleClick("product")}
+                  >
+                    Add Product
+                  </button>
+                </h6>
+              </div>
+            ) : null}
+            {/* Display order details */}
+            {orderDetails.length > 0 && (
+              <div className="row">
+                <div className="col-12 table-container">
+                  <div className="table-responsive">
+                    <table className="table table-striped table-bordered">
+                      <thead className="thead-dark">
+                        <tr>
+                          <th>Order No</th>
+                          <th>Order Date</th>
+                          <th>Total Amount</th>
+                          <th>Status</th>
+                          <th>Supplier ID</th>
+                          <th>Product IDs</th>
+                          <th>Product Quantities</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {orderDetails.map((order) => (
+                          <tr key={order.orderNo}>
+                            <td>{order.orderNo}</td>
+                            <td>{formatDate(order.orderDate)}</td>
+                            <td>
+                              &#8377; {numberWithCommas(order.orderTotalAmount)}
+                            </td>
+                            <td>
+                              {order.orderStatus === "placed" ? (
+                                <Badge className="bg-warning">Placed</Badge>
+                              ) : order.orderStatus == "received" ? (
+                                <Badge className="bg-success">Received</Badge>
+                              ) : (
+                                <>{order.orderStatus}</>
+                              )}
+                            </td>
+                            <td>{order.supplierId}</td>
+                            <td>{order.productIds.join(", ")}</td>
+                            <td>{order.productQtys.join(", ")}</td>
+                            <td>
+                              <button className="btn btn-primary btn-sm">
+                                <FontAwesomeIcon icon={faEye} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };

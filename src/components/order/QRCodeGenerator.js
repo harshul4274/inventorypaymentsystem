@@ -1,112 +1,101 @@
 import QRCode from "qrcode.react";
 import jsQR from "jsqr";
+import axios from "axios";
 
-import React, { useState, useEffect } from 'react';
-import web3 from '../../utils/web3';
-import InventoryPayment from '../../contracts/InventoryPayment.json';
-import { toast, ToastContainer } from 'react-toastify';
+import React, { useState, useEffect } from "react";
+import web3 from "../../utils/web3";
+import InventoryPayment from "../../contracts/InventoryPayment.json";
+import { toast, ToastContainer } from "react-toastify";
 
 function QRCodeGenerator() {
-    const [inputData, setInputData] = useState("");
-    const [qrData, setQrData] = useState("");
-    const [uploadedQRData, setUploadedQRData] = useState("");
-    const [inventoryContract, setInventoryContract] = useState(null);
-    const [accounts, setAccounts] = useState([]);
-  
-  
-    useEffect(() => {
-      initContract();
-    }, []);
-    
-    const initContract = async () => {
-      const networkId = await web3.eth.net.getId();
-      const deployedNetwork = InventoryPayment.networks[networkId];
-      const contract = new web3.eth.Contract(
-        InventoryPayment.abi,
-        deployedNetwork && deployedNetwork.address
-      );
-      setInventoryContract(contract);
-    };
+  const baseURL = process.env.REACT_APP_API_URL;
+  const [inputData, setInputData] = useState("");
+  const [qrData, setQrData] = useState("");
 
-    useEffect(() => {
-      const fetchAccounts = async () => {
-        const accs = await web3.eth.getAccounts();
-        setAccounts(accs);
+
+  const generateQRCode = () => {
+    setQrData(inputData);
+  };
+
+  // const jsonData = {
+  //   "orderNo": 1,
+  //   "receivedProducts": [
+  //     {
+  //       "productId": 1,
+  //       "productQtyOrder": 50,
+  //       "productQtyReceived": 40,
+  //       "productPrice": 20
+  //     },
+  //     {
+  //       "productId": 2,
+  //       "productQtyOrder": 50,
+  //       "productQtyReceived": 40,
+  //       "productPrice": 10
+  //     }
+  //   ]
+  // }
+
+  const handleReceivedOrder = async (orderNo, orderDetails) => {
+    try {
+      const receivedOrderProductDetails = JSON.stringify(orderDetails);
+
+      const requestBody = {
+        orderNo,
+        receivedOrderProductDetails,
       };
-  
-      fetchAccounts();
-    }, []);
 
-    const generateQRCode = () => {
-        setQrData(inputData);
-    };
+      await axios.post(`${baseURL}/api/order/received`, requestBody);
 
-    const jsonData = {
-      "orderNo": 3,
-      "receivedProducts": [
-        {
-          "productId": 1,
-          "productQtyOrder": 60,
-          "productQtyReceived": 60,
-          "productPrice": 10,
-        },
-        {
-          "productId": 2,
-          "productQtyOrder": 60,
-          "productQtyReceived": 60,
-          "productPrice": 10,
-        }
-      ]
-    };
+      toast.success("Successfully Received Order");
+    } catch (error) {
+      console.log(error);
+    }
+  };
 
-    const handleReceivedOrder = async (orderNo,orderDetails) => {
-        try {
-            // const gasEstimate = await inventoryContract.methods.receiveOrder(orderNo, orderDetails).estimateGas({ from: accounts[0] });
-            // const gasLimit = gasEstimate * 2;
-            // await inventoryContract.methods.receiveOrder(orderNo, orderDetails).send({ from: accounts[0], gas: gasLimit });
-            // toast.success("Successfully Received Order");
-            
-            const gasEstimate = await inventoryContract.methods.receiveOrder(jsonData.orderNo, jsonData.receivedProducts).estimateGas({ from: accounts[0] });
-            console.log(gasEstimate);
-            const gasLimit = gasEstimate * 2;
-            await inventoryContract.methods.receiveOrder(jsonData.orderNo, jsonData.receivedProducts).send({ from: accounts[0], gas: gasLimit });
-            toast.success("Successfully Received Order");
-
-        } catch (error) {
-            console.log(error);
-            toast.error(error.message);
-        }
-    };
-    
-    const handleFileUpload = (event) => {
-        const file = event.target.files[0];
-        const reader = new FileReader();
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    const reader = new FileReader();
 
     reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement("canvas");
-            const ctx = canvas.getContext("2d");
-            canvas.width = img.width;
-            canvas.height = img.height;
-            ctx.drawImage(img, 0, 0);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            const qrCode = jsQR(imageData.data, imageData.width, imageData.height);
+        try {
+          const qrCode = jsQR(
+            imageData.data,
+            imageData.width,
+            imageData.height
+          );
 
-            if (qrCode) {
-                const receivedOrderDetails = qrCode.data;
-                handleReceivedOrder(receivedOrderDetails.orderNo,receivedOrderDetails.products);
-                console.log(receivedOrderDetails);
-                setUploadedQRData(qrCode.data);
-            } else {
-                console.error("No QR code found in the uploaded image.");
+          if (qrCode && qrCode.data) {
+            const receivedOrderDetails = JSON.parse(qrCode.data);
+            if (
+              receivedOrderDetails.orderNo &&
+              receivedOrderDetails.receivedProducts
+            ) {
+              handleReceivedOrder(
+                receivedOrderDetails.orderNo,
+                receivedOrderDetails.receivedProducts
+              );
             }
-        };
-        img.src = e.target.result;
+          } else {
+            console.error("No QR code found in the uploaded image.");
+          }
+        } catch (error) {
+          console.error("Error parsing QR code data:", error);
+          // Handle parsing error here, such as displaying an error message to the user
+        }
+      };
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
-};
+  };
 
   return (
     <div>
@@ -120,11 +109,6 @@ function QRCodeGenerator() {
       <br />
       <hr />
       <input type="file" accept="image/*" onChange={handleFileUpload} />
-      {uploadedQRData && (
-        <div>
-          <p>Uploaded QR Code Data: {uploadedQRData}</p>
-        </div>
-      )}
     </div>
   );
 }

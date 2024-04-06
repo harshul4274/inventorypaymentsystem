@@ -17,7 +17,9 @@
 .navbar-nav .nav-item .nav-link:hover {
     color: green !important;
 }
-
+.order-table-container{
+    margin-top: 5% !important;
+}
 .table-container{
     margin-top: 10% !important;
 }
